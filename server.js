@@ -1,19 +1,24 @@
-const Pusher = require("pusher");
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY,
-  secret: process.env.PUSHER_SECRET,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-  useTLS: true,
+const { WebSocketServer } = require("ws");
+
+const port = process.env.PORT || 8080;
+const wss = new WebSocketServer({ port });
+
+wss.on("connection", (ws) => {
+  console.log("Client connected");
+
+  ws.on("message", (message) => {
+    console.log(`Received message: ${message}`);
+    ws.send(`Echo: ${message}`);
+  });
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+  });
 });
 
-// Exemple d'utilisation : envoyer un message toutes les 5 secondes
-setInterval(() => {
-  pusher.trigger("my-channel", "my-event", {
-    message: "hello world from server.js " + new Date().toLocaleTimeString(),
-  });
-  console.log("Pusher event triggered.");
-}, 5000);
-
-console.log("Pusher backend initialized.");
+console.log(`WebSocket server started on port ${port}`);

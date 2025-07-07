@@ -1,50 +1,36 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Pusher from "pusher-js";
 
 export const useGemini = () => {
-  const [message, setMessage] = useState<string | null>(null);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<any | null>(null);
+  const [error, setError] = useState<Event | null>(null);
 
   useEffect(() => {
-    // Initialiser Pusher avec vos clés publiques
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-    });
+    const wsUrl = process.env.NODE_ENV === "production"
+      ? `wss://journal-vocal-backend.onrender.com`
+      : "ws://localhost:8080";
+    const ws = new WebSocket(wsUrl);
 
-    // S'abonner à un canal
-    const channel = pusher.subscribe("my-channel");
-
-    // Écouter un événement spécifique
-    channel.bind("my-event", (data: any) => {
-      setMessage(data.message);
-      setIsConnected(true); // Considérer comme connecté si on reçoit un message
-    });
-
-    // Gérer les erreurs de connexion Pusher
-    pusher.connection.bind("error", (err: any) => {
-      console.error("Pusher connection error:", err);
-      setError(err);
-      setIsConnected(false);
-    });
-
-    pusher.connection.bind("connected", () => {
+    ws.onopen = () => {
       setIsConnected(true);
-    });
+      setSocket(ws);
+    };
 
-    pusher.connection.bind("disconnected", () => {
+    ws.onclose = () => {
       setIsConnected(false);
-    });
+      setSocket(null);
+    };
 
-    // Nettoyage lors du démontage du composant
+    ws.onerror = (err) => {
+      setError(err);
+    };
+
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe("my-channel");
-      pusher.disconnect();
+      ws.close();
     };
   }, []);
 
-  return { message, isConnected, error };
+  return { socket, isConnected, error };
 };
